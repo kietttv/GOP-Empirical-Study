@@ -5,7 +5,7 @@
 ## 1. Setup
 
 ```powershell
-cd D:\FSB_MSE\FINAL\GOP-Empirical-Study
+# From repo root
 conda env create -f environment.yml
 conda activate gop
 pip install -r requirements.txt
@@ -26,12 +26,11 @@ python -m pytest tests/
 
 ### Option 1 — Download from browser
 
-Access: https://huggingface.co/datasets/tkiet1877/gop-empirical-study-data
+Access: [https://huggingface.co/datasets/tkiet1877/gop-empirical-study-data](https://huggingface.co/datasets/tkiet1877/gop-empirical-study-data)
 
 Dowload the "data.zip" to /data
 
 Unzip "data.zip"
-
 
 ### Option 2 — CLI (`hf`)
 
@@ -61,6 +60,8 @@ Test-Path data\so762_inputs\wavs
 ```
 
 ---
+
+
 
 ## 3. Extract SSL features (before C8–C11 / E9–E18)
 
@@ -138,6 +139,8 @@ Omit `--device cuda` to use CPU (slower).
 `run_experiment.py` only **reads** these CSVs/NPZs; it does not extract.
 
 ---
+
+
 
 ## 4. Run experiments
 
@@ -243,11 +246,13 @@ python scripts/run_f_multiseed.py
 
 ---
 
+
+
 ## 5. Minimal “eval only” path (extracts already on disk)
 
 ```powershell
 conda activate gop
-cd D:\FSB_MSE\FINAL\GOP-Empirical-Study
+cd # repo root
 
 python scripts/run_experiment.py --config configs/a_traditional_gop.yaml
 python scripts/run_experiment.py --config configs/b_gop_representation.yaml
@@ -265,6 +270,8 @@ python scripts/run_experiment.py --config configs/f_validation.yaml
 ```
 
 ---
+
+
 
 ## 6. Notebooks
 
