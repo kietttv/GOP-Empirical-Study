@@ -1,0 +1,39 @@
+# Group B — GOP Feature Representation (B1–B5)
+# Protocol lock: same dataset, alignment, acoustic model, split, and direct
+# scoring as Group A. Only the GOP representation changes.
+
+group: B
+experiments:
+  - B1
+  - B2
+  - B3
+  - B4
+  - B5
+gop_type: representation_sweep # B1–B4 + B5 84-d LPP+LPR
+acoustic_model: kaldi_librispeech_m13
+alignment: kaldi
+level: phoneme
+scoring: direct # no MLP / GOPT model; B4/B5 use train-only linear OLS
+dataset: speechocean762
+sampling_rate_hz: 16000
+score_floor: 0.1
+phone_index_base: 0 # index into 42-dim LPP; Kaldi ids 3..41
+expected_n_phones: 42
+skip_phones:
+  - SIL
+  - SPN
+  - NSN
+  - sil
+  - spn
+  - nsn
+  - "<eps>"
+seed: 0
+score_clip:
+  - 0.0
+  - 2.0
+
+paths:
+  # Relative to GOP-Empirical-Study/. Same Kaldi extract as Group A.
+  kaldi_dir: data/kaldi_gop_librispeech
+  scores_json: data/scores.json
+  output_dir: outputs/B

@@ -1,0 +1,39 @@
+# Group A — Traditional GOP (A1) then GOP vs human (A2)
+# A1 = compute canonical LPP scalar. A2 = correlate that scalar with expert scores.
+# Protocol lock: do not change these fields between Group A and later groups
+# unless the experiment is explicitly studying that factor.
+
+group: A
+experiments:
+  - A1
+  - A2
+gop_type: standard # Witt & Young mean log-posterior = canonical LPP
+acoustic_model: kaldi_librispeech_m13
+alignment: kaldi
+level: phoneme
+scoring: direct # no MLP / GOPT
+dataset: speechocean762
+sampling_rate_hz: 16000
+score_floor: 0.1
+phone_index_base: 0 # GOP = LPP[phone_id]; Kaldi ids 3..41 into 42-dim LPP
+expected_n_phones: 42
+skip_phones:
+  - SIL
+  - SPN
+  - NSN
+  - sil
+  - spn
+  - nsn
+  - "<eps>"
+seed: 0
+score_clip:
+  - 0.0
+  - 2.0
+
+paths:
+  # Relative to GOP-Empirical-Study/. Copied from GOPT kaggle_upload_raw_kaldi_gop
+  # (Kaldi GOP extract, Librispeech M13). Group A needs feats + phone keys + scores.
+  kaldi_dir: data/kaldi_gop_librispeech
+  scores_json: data/scores.json
+  # scores_json: data\speechocean762\resource\scores.json
+  output_dir: outputs/A

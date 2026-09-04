@@ -1,0 +1,36 @@
+# Group D — GOP behavior analysis (D1 phone / D2 speaker / D3 score strata)
+# Does not recompute GOP. Reads locked Group A artifacts and stratifies them.
+# Protocol lock: same dataset, alignment, Kaldi M13, standard GOP, split,
+# and direct scoring as Group A. Only the grouping factor changes.
+# D3 is speaker-mean sentence-accuracy tertiles, not CEFR/proficiency.
+
+group: D
+experiments:
+  - D1
+  - D2
+  - D3
+gop_type: standard
+acoustic_model: kaldi_librispeech_m13
+alignment: kaldi
+level: phoneme
+scoring: direct
+dataset: speechocean762
+sampling_rate_hz: 16000
+score_floor: 0.1
+phone_index_base: 0
+seed: 0
+score_clip:
+  - 0.0
+  - 2.0
+min_n_phone: 100
+min_n_speaker: 50
+min_n_stratum: 50
+a2_pcc_atol: 1.0e-6
+
+paths:
+  # Relative to GOP-Empirical-Study/.
+  a1_predictions: outputs/A/a1_predictions.csv
+  a2_results: outputs/A/a2_results.json
+  scores_json: data/scores.json
+  speechocean_dir: data/speechocean762
+  output_dir: outputs/D

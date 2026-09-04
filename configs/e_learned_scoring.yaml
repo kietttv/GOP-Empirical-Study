@@ -1,0 +1,80 @@
+# Group E — Learned scoring (E1/E2 Kaldi B4; E3–E6 C8/C9 GOP-S; E19–E22 C10/C11 GOP-SD; E7–E18 LPP+LPR ± embed)
+# Does not recompute GOP posteriors. Reads locked A/B/C artifacts; 84-d from Kaldi extract.
+# --features b5 / b5_embed / c8_lpp_lpr / c9_lpp_lpr / *_embed / c10 / c11 add follow-ups without rewriting e_predictions.csv.
+# Validation speakers are carved from official *train* speakers only (no test leak).
+
+group: E
+experiments:
+  - E1
+  - E2
+gop_type: b4_gop_vector
+acoustic_model: kaldi_librispeech_m13
+alignment: kaldi
+level: phoneme
+scoring: learned
+dataset: speechocean762
+sampling_rate_hz: 16000
+score_floor: 0.1
+seed: 0
+score_clip:
+  - 0.0
+  - 2.0
+
+# b4 = [LPP, max competitor, LPR] (default). a1 = scalar canonical LPP.
+# c8 / c9 = scalar Cao GOP-S from Group C (E3–E6).
+# c10 / c11 = scalar Cao GOP-SD from Group C (E19–E22).
+# b5 = Kaldi 84-d LPP+LPR (E7/E8). b5_embed = same 84-d + phone embed (E13/E14; does not retrain E7/E8).
+# c8_lpp_lpr / c9_lpp_lpr = 78-d CTC-aligned LPP+LPR (E9–E12).
+# c8_lpp_lpr_embed / c9_lpp_lpr_embed = same 78-d + SSL 39-way phone embed (E15–E18; does not retrain E9–E12).
+# CLI: --features b4    or   --features a1    or   --features c8 c9
+#      --features c10 c11 --device cuda
+#      --features b5    or   --features b5_embed   or   --features c8_lpp_lpr c9_lpp_lpr
+#      --features c8_lpp_lpr_embed c9_lpp_lpr_embed
+features: b4
+# For c10/c11 (E19–E22): mimic Cao IS2024 scalar protocol by default.
+# E19/E21 = polynomial regression (order 2) per phoneme; E20/E22 = per-phoneme SVR.
+paper_like_c10_c11: true
+val_speaker_frac: 0.2
+max_seq_len: 50
+
+phone_index_base: 0
+expected_n_phones: 42
+skip_phones:
+  - SIL
+  - SPN
+  - NSN
+  - sil
+  - spn
+  - nsn
+  - "<eps>"
+
+mlp:
+  hidden_dim: 32
+transformer:
+  d_model: 32
+  nhead: 4
+  nlayers: 2
+  dim_feedforward: 64
+  dropout: 0.1
+train:
+  lr: 0.001
+  max_epochs: 40
+  patience: 8
+  batch_size_e1: 256
+  batch_size_e2: 32
+  device: cpu
+
+paths:
+  # Relative to GOP-Empirical-Study/.
+  a1_predictions: outputs/A/a1_predictions.csv
+  a2_results: outputs/A/a2_results.json
+  b_predictions: outputs/B/b_predictions.csv
+  b_results: outputs/B/b_results.json
+  c_predictions: outputs/C/c_predictions.csv
+  c_results: outputs/C/c_results.json
+  kaldi_dir: data/kaldi_gop_librispeech
+  scores_json: data/scores.json
+  xlsr_espeak_lpp_lpr_dir: data/xlsr_espeak_lpp_lpr
+  lv60_espeak_lpp_lpr_dir: data/lv60_espeak_lpp_lpr
+  speechocean_dir: data/speechocean762
+  output_dir: outputs/E

@@ -1,0 +1,80 @@
+# Group F — Statistical validation (F1) + error analysis (F2)
+# Does not recompute GOP or overwrite seed-0 Group E artifacts.
+# Reads locked A/B/C/E predictions; bootstrap + paired Δ on official test phones.
+# Multi-seed retrains E2/E16 into outputs/F/ only (val speakers fixed from seed 0).
+
+group: F
+experiments:
+  - F1
+  - F2
+dataset: speechocean762
+level: phoneme
+seed: 0
+n_bootstrap: 1000
+ci_level: 0.95
+score_clip:
+  - 0.0
+  - 2.0
+
+# Headline models for F1a CIs (scores in human 0–2 space after direct map / learned pred).
+models:
+  - C1
+  - C8
+  - C9
+  - B4_OLS
+  - E2
+  - E7
+  - E8
+  - E10
+  - E12
+  - E14
+  - E16
+  - E18
+
+# Paired ΔPCC / ΔSCC contrasts (score_a − score_b on the same phones).
+contrasts:
+  - [C8, C1]
+  - [C9, C1]
+  - [C8, C9]
+  - [E2, B4_OLS]
+  - [E8, E7]
+  - [E14, E8]
+  - [E16, E10]
+  - [E18, E12]
+  - [E16, C8]
+
+multiseed:
+  models:
+    - E2
+    - E16
+  seeds: [0, 1, 2, 3, 4]
+  # Val speakers locked to seed 0 (protocol); only train RNG changes.
+  lock_val_seed: 0
+
+error:
+  top_k: 100
+  models:
+    - C8
+    - E16
+  context_err_gap: 0.5
+  accent_pred_min: 1.5
+  speaker_mae_quantile: 0.9
+
+# Paths relative to GOP-Empirical-Study/.
+paths:
+  a1_predictions: outputs/A/a1_predictions.csv
+  a2_results: outputs/A/a2_results.json
+  b_predictions: outputs/B/b_predictions.csv
+  b_results: outputs/B/b_results.json
+  c_predictions: outputs/C/c_predictions.csv
+  c_results: outputs/C/c_results.json
+  d2_speaker_metrics: outputs/D/d2_speaker_metrics.csv
+  e_predictions: outputs/E/e_predictions.csv
+  e_b5_predictions: outputs/E/e_b5_predictions.csv
+  e_c8_lpp_lpr_predictions: outputs/E/e_c8_lpp_lpr_predictions.csv
+  e_c9_lpp_lpr_predictions: outputs/E/e_c9_lpp_lpr_predictions.csv
+  e_results: outputs/E/e_results.json
+  e_config: configs/e_learned_scoring.yaml
+  scores_detail: data/speechocean762/resource/scores-detail.json
+  speechocean_dir: data/speechocean762
+  output_dir: outputs/F

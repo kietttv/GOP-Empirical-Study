@@ -1,0 +1,16 @@
+name: gop
+channels:
+  - defaults
+dependencies:
+  - python=3.11
+  - numpy
+  - pandas
+  - scipy
+  - scikit-learn
+  - pyyaml
+  - matplotlib
+  - ipykernel
+  - ipython
+  - pip
+  - pip:
+      - torch

@@ -1,0 +1,41 @@
+{
+  "group": "A",
+  "experiments": [
+    "A1",
+    "A2"
+  ],
+  "A1": {
+    "description": "Traditional GOP = canonical LPP scalar",
+    "gop_type": "standard",
+    "acoustic_model": "kaldi_librispeech_m13",
+    "alignment": "kaldi",
+    "dataset": "speechocean762",
+    "level": "phoneme",
+    "scoring": "direct",
+    "phone_index_base": 0,
+    "n_train": 47076,
+    "n_test": 47369,
+    "n_missing_human": 0,
+    "n_skipped_silence": 0,
+    "predictions_path": "outputs/A/a1_predictions.csv"
+  },
+  "A2": {
+    "description": "GOP vs human phoneme score on official test split",
+    "pcc": 0.32305254505609116,
+    "scc": 0.3128117227224352,
+    "mae": 0.19935808079151404,
+    "mse": 0.12026967940693756,
+    "n": 47369,
+    "train": {
+      "pcc": 0.34245763504656423,
+      "scc": 0.32884562518747235,
+      "mae": 0.2193000828889906,
+      "mse": 0.15227153443832767,
+      "n": 47076
+    },
+    "mapping": {
+      "slope": 0.21940455627038322,
+      "intercept": 0.4442474810849866
+    }
+  }
+}

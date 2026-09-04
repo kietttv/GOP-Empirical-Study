@@ -1,0 +1,83 @@
+# Group C — Acoustic Model Dependency (C1–C11)
+# C1–C3 protocol lock: same dataset, Kaldi alignment, 39-phone CMU set,
+# official split, direct scoring; only the acoustic model changes (mean LPP).
+# C4–C5 lock HuBERT (C3) and change GOP. C6–C7 lock Wav2Vec2 (C2) the same way.
+# C8–C9: off-the-shelf Facebook espeak CTC + Cao GOP-S / AF-S (no fine-tune).
+# C10–C11: same C8/C9 AMs + Cao GOP-SD / AF-SD (CSVs in *_gop_cao_sd).
+# Default omits C6/C7 so eval does not require those CSVs.
+
+group: C
+experiments:
+  - C1
+  - C2
+  - C3
+  - C4
+  - C5
+  - C8
+  - C9
+  - C10
+  - C11
+gop_type: standard
+alignment: kaldi
+level: phoneme
+scoring: direct
+dataset: speechocean762
+sampling_rate_hz: 16000
+score_floor: 0.1
+phone_index_base: 0
+expected_n_phones: 42
+skip_phones:
+  - SIL
+  - SPN
+  - NSN
+  - sil
+  - spn
+  - nsn
+  - "<eps>"
+seed: 0
+score_clip:
+  - 0.0
+  - 2.0
+min_paired_frac: 0.95
+
+acoustic_models:
+  C1: kaldi_librispeech_m13
+  C2: wav2vec2_phoneme_ctc
+  C3: hubert_phoneme_ctc
+  C4: hubert_phoneme_ctc
+  C5: hubert_phoneme_ctc
+  C6: wav2vec2_phoneme_ctc
+  C7: wav2vec2_phoneme_ctc
+  C8: wav2vec2_xlsr53_espeak_ctc
+  C9: wav2vec2_lv60_espeak_ctc
+  C10: wav2vec2_xlsr53_espeak_ctc
+  C11: wav2vec2_lv60_espeak_ctc
+
+paths:
+  kaldi_dir: data/kaldi_gop_librispeech
+  scores_json: data/scores.json
+  phone_inventory: data/phone_inventory.json
+  cmu_to_espeak: data/cmu_to_espeak.json
+  espeak_ctc_vocab: data/espeak_ctc_vocab.json
+  wav2vec2_gop_dir: data/wav2vec2_gop
+  wav2vec2_gop_max_dir: data/wav2vec2_gop_max
+  wav2vec2_gop_cao_dir: data/wav2vec2_gop_cao
+  hubert_gop_dir: data/hubert_gop
+  hubert_gop_max_dir: data/hubert_gop_max
+  hubert_gop_cao_dir: data/hubert_gop_cao
+  xlsr_espeak_gop_cao_dir: data/xlsr_espeak_gop_cao
+  lv60_espeak_gop_cao_dir: data/lv60_espeak_gop_cao
+  xlsr_espeak_gop_cao_sd_dir: data/xlsr_espeak_gop_cao_sd
+  lv60_espeak_gop_cao_sd_dir: data/lv60_espeak_gop_cao_sd
+  xlsr_espeak_lpp_lpr_dir: data/xlsr_espeak_lpp_lpr
+  lv60_espeak_lpp_lpr_dir: data/lv60_espeak_lpp_lpr
+  output_dir: outputs/C
+  wav_dir: data/so762_inputs/wavs
+  ctm_train: data/so762_inputs/segments/train.ctm
+  ctm_test: data/so762_inputs/segments/test.ctm
+  wav2vec2_checkpoint: models/wav2vec2_phoneme_ctc/checkpoint-2500
+  wav2vec2_processor: models/wav2vec2_phoneme_ctc/checkpoint-2500
+  hubert_checkpoint: models/hubert_phoneme_ctc/checkpoint-7500
+  hubert_processor: models/hubert_phoneme_ctc/checkpoint-7500
+  xlsr_espeak_checkpoint: models/wav2vec2-xlsr-53-espeak-cv-ft
+  lv60_espeak_checkpoint: models/wav2vec2-lv-60-espeak-cv-ft
