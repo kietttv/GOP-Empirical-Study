@@ -11,7 +11,7 @@ Examples:
       --config configs/e_learned_scoring.yaml \\
       --experiment E2 \\
       --features b4 \\
-      --out outputs/E/e2_phone_transformer.pt
+      --out checkpoints/e2/transformer_ckpt.pt
 
     python scripts/export_group_e_checkpoint.py \\
       --config configs/e_learned_scoring.yaml \\
@@ -60,7 +60,7 @@ def main(argv: list[str] | None = None) -> int:
         "--out",
         type=Path,
         default=None,
-        help="Output .pt path (default: outputs/E/{eid}_phone_{mlp|transformer}.pt)",
+        help="Output .pt path (default: checkpoints/{eid}/{mlp|transformer}_ckpt.pt)",
     )
     parser.add_argument(
         "--force",

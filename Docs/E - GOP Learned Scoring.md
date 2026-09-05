@@ -386,6 +386,7 @@ outputs/E/e_b5_predictions.csv            (--features b5; pred_e7/e8; --features
 outputs/E/e_c8_lpp_lpr_predictions.csv    (--features c8_lpp_lpr; pred_e9/e10; embed adds pred_e15/e16)
 outputs/E/e_c9_lpp_lpr_predictions.csv    (--features c9_lpp_lpr; pred_e11/e12; embed adds pred_e17/e18)
 outputs/E/e_results.json                  (merge E3–E22 into locked E1/E2)
+checkpoints/e1/mlp_ckpt.pt                (and e2/transformer_ckpt.pt, …)
 ```
 
 Môi trường: conda `gop` + PyTorch. Notebook: `notebooks/E_learned_scoring.ipynb` — **chỉ đọc artifact**.
@@ -437,6 +438,7 @@ Baseline copy từ JSON đã khóa, **không** fit lại.
 | `src/gop_empirical/scoring/mlp.py` | E1 / E3 / E5 / E7 / E9 / E11 / E13 / E15 / E17 / E19 / E21 |
 | `src/gop_empirical/scoring/transformer.py` | E2 / E4 / E6 / E8 / E10 / E12 / E14 / E16 / E18 / E20 / E22 |
 | `src/gop_empirical/scoring/train.py` | Adam + early stop |
+| `src/gop_empirical/scoring/checkpoint.py` | `checkpoints/{eid}/{arch}_ckpt.pt` |
 | `src/gop_empirical/eval/metrics.py` | `evaluate_predictions` |
 | `src/gop_empirical/experiment.py` | `run_group_e` |
 | `scripts/run_experiment.py` | `--features` |
@@ -462,6 +464,13 @@ outputs/E/
   e_results.json
   e_comparison_pcc.png      notebook
   e_scatter_pred_vs_human.png
+
+checkpoints/
+  e1/mlp_ckpt.pt
+  e2/transformer_ckpt.pt
+  e15/mlp_ckpt.pt
+  e16/transformer_ckpt.pt
+  … (one folder per E1–E18 neural scorer; overwritten on re-run)
 ```
 
 `e_predictions.csv` gồm `role` (train/val/test), feature columns, `pred_e1`, `pred_e2`.

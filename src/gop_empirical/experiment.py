@@ -1268,6 +1268,81 @@ def _group_e_feature_path(feature_set: str, paths: dict[str, Any], package_root:
     return group_e_artifact_path(feature_set, paths, package_root)
 
 
+def _group_e_checkpoint_dir(cfg: dict[str, Any], package_root: Path) -> Path:
+    raw = (cfg.get("paths") or {}).get("checkpoint_dir", "checkpoints")
+    return resolve_path(raw, base=package_root)
+
+
+def _write_group_e_checkpoint(
+    checkpoint_dir: Path,
+    package_root: Path,
+    *,
+    experiment_id: str,
+    architecture: str,
+    model: Any,
+    scaler: FeatureScaler,
+    model_kwargs: dict[str, Any],
+    feature_set: str,
+    fit: dict[str, Any],
+    protocol: dict[str, Any],
+    metrics: dict[str, Any],
+) -> str:
+    from gop_empirical.scoring.checkpoint import default_checkpoint_path, save_checkpoint
+
+    path = default_checkpoint_path(checkpoint_dir, experiment_id, architecture)
+    save_checkpoint(
+        path,
+        experiment_id=experiment_id,
+        architecture=architecture,
+        model=model,
+        scaler=scaler,
+        model_kwargs=model_kwargs,
+        feature_set=feature_set,
+        fit=fit,
+        protocol=protocol,
+        metrics=metrics,
+    )
+    rel = rel_path(path, base=package_root)
+    print(f"  saved {experiment_id} -> {rel}", flush=True)
+    return rel
+
+
+def _maybe_save_group_e_scorer(
+    *,
+    save_checkpoints: bool,
+    checkpoint_dir: Path | None,
+    package_root: Path,
+    experiment_id: str,
+    architecture: str,
+    model: Any,
+    scaler: FeatureScaler,
+    model_kwargs: dict[str, Any],
+    feature_set: str,
+    fit: dict[str, Any],
+    protocol: dict[str, Any],
+    role_metrics: dict[str, Any],
+) -> str | None:
+    if not save_checkpoints or checkpoint_dir is None:
+        return None
+    return _write_group_e_checkpoint(
+        checkpoint_dir,
+        package_root,
+        experiment_id=experiment_id,
+        architecture=architecture,
+        model=model,
+        scaler=scaler,
+        model_kwargs=model_kwargs,
+        feature_set=feature_set,
+        fit=fit,
+        protocol=protocol,
+        metrics={
+            "test": _metric_subset(role_metrics["test"]),
+            "val": _metric_subset(role_metrics["val"]),
+            "train": _metric_subset(role_metrics["train"]),
+        },
+    )
+
+
 def merge_group_e_results(
     existing: dict[str, Any] | None,
     new: dict[str, Any],
@@ -1521,6 +1596,16 @@ def _role_prediction_metrics(
     return out
 
 
+def _role_prediction_metrics_from_array(
+    df: pd.DataFrame,
+    pred: np.ndarray,
+    clip: tuple[float, float],
+) -> dict[str, Any]:
+    work = df.loc[:, ["role", "human_score"]].copy()
+    work["_pred"] = np.clip(np.asarray(pred, dtype=np.float64), clip[0], clip[1])
+    return _role_prediction_metrics(work, "_pred", clip)
+
+
 def _is_paper_like_c10_c11_mode(cfg: dict[str, Any], feature_set: str) -> bool:
     """Use Cao IS2024-style scorers for E19–E22 on scalar GOP-SD."""
     if feature_set not in ("c10", "c11"):
@@ -1599,6 +1684,9 @@ def _run_feature_set(
     seed: int,
     clip: tuple[float, float],
     device: Any,
+    checkpoint_dir: Path | None = None,
+    save_checkpoints: bool = False,
+    package_root: Path | None = None,
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
     from gop_empirical.scoring.mlp import PhoneMLP
     from gop_empirical.scoring.train import (
@@ -1719,11 +1807,11 @@ def _run_feature_set(
                     tf_id: _metric_subset(e2_metrics["test"]),
                 }
             },
+            "checkpoint_paths": {},
         }
         return out, block
 
     mlp_id, tf_id = scoring_ids(feature_set)
-    test_mask = (df["role"] == "test").to_numpy()
     model_e1 = PhoneMLP(input_dim=len(stored), hidden_dim=hidden_dim, n_phones=n_phones)
     hist_e1 = train_regressor(
         model_e1,
@@ -1753,10 +1841,47 @@ def _run_feature_set(
     pred_e1 = predict_mlp(
         model_e1, scaled, batch_size=batch_e1, device=device, phone_ids=phone_idx
     )
-    _print_metrics(
-        f"{mlp_id} test",
-        evaluate_predictions(pred_e1[test_mask], y_all[test_mask], clip=clip),
+    e1_metrics = _role_prediction_metrics_from_array(df, pred_e1, clip)
+    _print_metrics(f"{mlp_id} test", e1_metrics["test"])
+    ckpt_root = package_root or PACKAGE_ROOT
+    ckpt_protocol = {
+        "dataset": cfg.get("dataset"),
+        "feature_set": feature_set,
+        "acoustic_model": FEATURE_ACOUSTIC_MODEL[feature_set],
+        "gop_type": FEATURE_GOP_TYPE[feature_set],
+        "seed": seed,
+        "score_clip": [float(clip[0]), float(clip[1])],
+        "device": str(device),
+        "phone_embed": n_phones is not None,
+        "n_phone_embed": n_phones,
+        "max_seq_len": int(max_seq_len),
+    }
+    fit_e1 = {
+        "best_epoch": hist_e1["best_epoch"],
+        "best_val_mse": hist_e1["best_val_mse"],
+        "epochs_ran": hist_e1["epochs_ran"],
+    }
+    ckpt_paths: dict[str, str] = {}
+    saved_mlp = _maybe_save_group_e_scorer(
+        save_checkpoints=save_checkpoints,
+        checkpoint_dir=checkpoint_dir,
+        package_root=ckpt_root,
+        experiment_id=mlp_id,
+        architecture="mlp",
+        model=model_e1,
+        scaler=scaler,
+        model_kwargs={
+            "input_dim": int(len(stored)),
+            "hidden_dim": hidden_dim,
+            "n_phones": n_phones,
+        },
+        feature_set=feature_set,
+        fit=fit_e1,
+        protocol=ckpt_protocol,
+        role_metrics=e1_metrics,
     )
+    if saved_mlp is not None:
+        ckpt_paths[mlp_id] = saved_mlp
 
     scaled_df = df.copy()
     for i, col in enumerate(stored):
@@ -1817,10 +1942,38 @@ def _run_feature_set(
     pred_e2 = predict_transformer(
         model_e2, packed_all, batch_size=batch_e2, device=device, n_rows=len(df)
     )
-    _print_metrics(
-        f"{tf_id} test",
-        evaluate_predictions(pred_e2[test_mask], y_all[test_mask], clip=clip),
+    e2_metrics = _role_prediction_metrics_from_array(df, pred_e2, clip)
+    _print_metrics(f"{tf_id} test", e2_metrics["test"])
+    fit_e2 = {
+        "best_epoch": hist_e2["best_epoch"],
+        "best_val_mse": hist_e2["best_val_mse"],
+        "epochs_ran": hist_e2["epochs_ran"],
+    }
+    saved_tf = _maybe_save_group_e_scorer(
+        save_checkpoints=save_checkpoints,
+        checkpoint_dir=checkpoint_dir,
+        package_root=ckpt_root,
+        experiment_id=tf_id,
+        architecture="transformer",
+        model=model_e2,
+        scaler=scaler,
+        model_kwargs={
+            "input_dim": int(len(stored)),
+            "d_model": int(tf_cfg.get("d_model", 32)),
+            "nhead": int(tf_cfg.get("nhead", 4)),
+            "nlayers": int(tf_cfg.get("nlayers", 2)),
+            "dim_feedforward": int(tf_cfg.get("dim_feedforward", 64)),
+            "dropout": float(tf_cfg.get("dropout", 0.1)),
+            "max_len": int(max_seq_len),
+            "n_phones": n_phones,
+        },
+        feature_set=feature_set,
+        fit=fit_e2,
+        protocol=ckpt_protocol,
+        role_metrics=e2_metrics,
     )
+    if saved_tf is not None:
+        ckpt_paths[tf_id] = saved_tf
 
     out = df.copy()
     if CANONICAL_PHONE_COL in out.columns:
@@ -1828,8 +1981,6 @@ def _run_feature_set(
     pred_mlp, pred_tf = scoring_pred_columns(feature_set)
     out[pred_mlp] = np.clip(pred_e1, clip[0], clip[1])
     out[pred_tf] = np.clip(pred_e2, clip[0], clip[1])
-    e1_metrics = _role_prediction_metrics(out, pred_mlp, clip)
-    e2_metrics = _role_prediction_metrics(out, pred_tf, clip)
     block = {
         "feature_set": feature_set,
         "feature_columns": stored,
@@ -1852,11 +2003,7 @@ def _run_feature_set(
             **e1_metrics["test"],
             "train": e1_metrics["train"],
             "val": e1_metrics["val"],
-            "fit": {
-                "best_epoch": hist_e1["best_epoch"],
-                "best_val_mse": hist_e1["best_val_mse"],
-                "epochs_ran": hist_e1["epochs_ran"],
-            },
+            "fit": fit_e1,
         },
         tf_id: {
             "description": _TF_DESCRIPTION[tf_id],
@@ -1867,11 +2014,7 @@ def _run_feature_set(
             **e2_metrics["test"],
             "train": e2_metrics["train"],
             "val": e2_metrics["val"],
-            "fit": {
-                "best_epoch": hist_e2["best_epoch"],
-                "best_val_mse": hist_e2["best_val_mse"],
-                "epochs_ran": hist_e2["epochs_ran"],
-            },
+            "fit": fit_e2,
         },
         "comparison": {
             "test": {
@@ -1879,6 +2022,7 @@ def _run_feature_set(
                 tf_id: _metric_subset(e2_metrics["test"]),
             }
         },
+        "checkpoint_paths": ckpt_paths,
     }
     return out, block
 
@@ -1997,11 +2141,11 @@ def export_group_e_checkpoint(
             f"python scripts/run_experiment.py --config configs/{cfg_name}.yaml"
         )
 
-    out_dir = resolve_path(paths["output_dir"], base=package_root)
+    ckpt_dir = _group_e_checkpoint_dir(cfg, package_root)
     ckpt_path = (
         resolve_path(out_path, base=package_root)
         if out_path is not None
-        else default_checkpoint_path(out_dir, eid, architecture)
+        else default_checkpoint_path(ckpt_dir, eid, architecture)
     )
     if ckpt_path.is_file() and not force:
         raise FileExistsError(
@@ -2289,6 +2433,8 @@ def run_group_e(
     torch.manual_seed(seed)
 
     out_dir = resolve_path(paths["output_dir"], base=package_root)
+    ckpt_dir = _group_e_checkpoint_dir(cfg, package_root)
+    save_ckpts = bool(cfg.get("save_checkpoints", True))
     per_set: dict[str, Any] = {}
     pred_paths: dict[str, str] = {}
     for feature_set in requested:
@@ -2301,7 +2447,15 @@ def run_group_e(
             test_speakers=speaker_meta["speakers_test"],
         )
         scored, block = _run_feature_set(
-            table, feature_set, cfg, seed=seed, clip=clip, device=device
+            table,
+            feature_set,
+            cfg,
+            seed=seed,
+            clip=clip,
+            device=device,
+            checkpoint_dir=ckpt_dir,
+            save_checkpoints=save_ckpts,
+            package_root=package_root,
         )
         n_test = int((scored["role"] == "test").sum())
         block["baseline"] = _frozen_linear_baseline(

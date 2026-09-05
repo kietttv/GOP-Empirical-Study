@@ -24,7 +24,7 @@ Không phải pipeline GOP mới. F **không** tính lại posterior. Independen
 
 Cặp paired: C8−C1, C9−C1, C8−C9, E2−B4_OLS, E8−E7, E14−E8, E16−E10, E18−E12, E16−C8.
 
-Multi-seed chỉ **E2** và **E16**, seeds `{0,1,2,3,4}` → `outputs/F/` (**không** ghi đè `outputs/E/` seed-0). Val speakers **cố định** theo seed 0; chỉ RNG train đổi.
+Multi-seed chỉ **E2** và **E16**, seeds `{0,1,2,3,4}` → `outputs/F/` (**không** ghi đè `outputs/E/` seed-0, **không** ghi `checkpoints/`). Val speakers **cố định** theo seed 0; chỉ RNG train đổi.
 
 Câu hỏi nghiên cứu:
 
@@ -207,7 +207,7 @@ Tất cả 9 cặp có `ci_excludes_zero = true`.
 
 ### F1c — Multi-seed (val speakers khóa seed 0)
 
-Ghi `outputs/F/f1_multiseed_*.csv` — **không** overwrite `outputs/E/`.
+Ghi `outputs/F/f1_multiseed_*.csv` — **không** overwrite `outputs/E/` hay `checkpoints/`.
 
 | Model | PCC mean ± std | min / max |
 | ----- | -------------: | --------- |

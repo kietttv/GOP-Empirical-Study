@@ -28,7 +28,7 @@ from gop_empirical.gop.representation import (
     lpp_lpr_concat,
     mean_lpp_on_frames,
 )
-from gop_empirical.scoring.checkpoint import load_checkpoint
+from gop_empirical.scoring.checkpoint import default_checkpoint_path, load_checkpoint
 from gop_empirical.scoring.train import predict_transformer
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[3]
@@ -280,11 +280,12 @@ def run_e16_utterance(
     ckpt_path = (
         Path(checkpoint_path)
         if checkpoint_path is not None
-        else root / "outputs" / "E" / "e16_phone_transformer.pt"
+        else default_checkpoint_path(root / "checkpoints", "E16", "transformer")
     )
     if not ckpt_path.is_file():
         raise FileNotFoundError(
-            f"missing {ckpt_path}; run: "
+            f"missing {ckpt_path}; run Group E with "
+            "--features c8_lpp_lpr_embed, or: "
             "python scripts/export_group_e_checkpoint.py "
             "--config configs/e_learned_scoring.yaml "
             "--experiment E16 --features c8_lpp_lpr_embed"

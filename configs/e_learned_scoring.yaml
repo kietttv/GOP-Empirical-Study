@@ -36,6 +36,8 @@ features: b4
 paper_like_c10_c11: true
 val_speaker_frac: 0.2
 max_seq_len: 50
+# Write MLP/Transformer weights after each run (not used by Group F multi-seed).
+save_checkpoints: true
 
 phone_index_base: 0
 expected_n_phones: 42
@@ -78,3 +80,4 @@ paths:
   lv60_espeak_lpp_lpr_dir: data/lv60_espeak_lpp_lpr
   speechocean_dir: data/speechocean762
   output_dir: outputs/E
+  checkpoint_dir: checkpoints

@@ -19,10 +19,13 @@ from gop_empirical.scoring.transformer import PhoneTransformer
 
 
 def test_default_checkpoint_path() -> None:
-    p = default_checkpoint_path("outputs/E", "E16", "transformer")
-    assert p == Path("outputs/E/e16_phone_transformer.pt")
-    p2 = default_checkpoint_path("outputs/E", "e15", "mlp")
-    assert p2 == Path("outputs/E/e15_phone_mlp.pt")
+    p = default_checkpoint_path("checkpoints", "E16", "transformer")
+    assert p == Path("checkpoints/e16/transformer_ckpt.pt")
+    p2 = default_checkpoint_path("checkpoints", "e15", "mlp")
+    assert p2 == Path("checkpoints/e15/mlp_ckpt.pt")
+    assert default_checkpoint_path("checkpoints", "E1", "mlp") == Path(
+        "checkpoints/e1/mlp_ckpt.pt"
+    )
 
 
 def test_save_load_transformer_roundtrip(tmp_path: Path) -> None:
@@ -37,7 +40,7 @@ def test_save_load_transformer_roundtrip(tmp_path: Path) -> None:
         n_phones=39,
     )
     scaler = FeatureScaler(np.zeros(78), np.ones(78))
-    path = tmp_path / "e16_phone_transformer.pt"
+    path = tmp_path / "e16" / "transformer_ckpt.pt"
     save_checkpoint(
         path,
         experiment_id="E16",
@@ -77,9 +80,7 @@ def test_save_load_transformer_roundtrip(tmp_path: Path) -> None:
 def test_save_load_mlp_roundtrip(tmp_path: Path) -> None:
     model = PhoneMLP(input_dim=3, hidden_dim=32, n_phones=None)
     scaler = FeatureScaler(np.zeros(3), np.ones(3))
-    path = default_checkpoint_path(tmp_path, "E2", "mlp")
-    # E2 is transformer in real runs; path helper only cares about names here.
-    path = tmp_path / "e1_phone_mlp.pt"
+    path = default_checkpoint_path(tmp_path, "E1", "mlp")
     save_checkpoint(
         path,
         experiment_id="E1",
@@ -93,3 +94,12 @@ def test_save_load_mlp_roundtrip(tmp_path: Path) -> None:
     assert isinstance(loaded["model"], PhoneMLP)
     rebuilt = build_model("mlp", loaded["model_kwargs"])
     assert isinstance(rebuilt, PhoneMLP)
+    assert path == tmp_path / "e1" / "mlp_ckpt.pt"
+
+
+def test_group_e_checkpoint_dir(tmp_path: Path) -> None:
+    from gop_empirical.experiment import _group_e_checkpoint_dir
+
+    cfg = {"paths": {"checkpoint_dir": "checkpoints"}}
+    assert _group_e_checkpoint_dir(cfg, tmp_path) == (tmp_path / "checkpoints").resolve()
+    assert _group_e_checkpoint_dir({}, tmp_path) == (tmp_path / "checkpoints").resolve()

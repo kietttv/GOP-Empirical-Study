@@ -28,7 +28,7 @@
     "level": "phoneme",
     "scoring": "learned",
     "features_requested": [
-      "c9_lpp_lpr_embed"
+      "c8_lpp_lpr_embed"
     ],
     "acoustic_model_by_features": {
       "c8_lpp_lpr_embed": "wav2vec2_xlsr53_espeak_ctc",
@@ -1005,6 +1005,10 @@
           "n": 47369
         }
       }
+    },
+    "checkpoint_paths": {
+      "E15": "checkpoints/e15/mlp_ckpt.pt",
+      "E16": "checkpoints/e16/transformer_ckpt.pt"
     },
     "baseline": {
       "name": "c8_lpp_lpr_embed_ols",

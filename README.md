@@ -221,7 +221,7 @@ python scripts/run_experiment.py --config configs/e_learned_scoring.yaml --featu
 
 Default device in yaml is `cpu`. Override with `--device cuda` if desired.
 
-Optional checkpoint for inference:
+Each run writes scorer weights to `checkpoints/{eid}/{mlp|transformer}_ckpt.pt` (overwrites on re-run). Group F multi-seed does not write here. One-off export without rewriting CSVs:
 
 ```powershell
 python scripts/export_group_e_checkpoint.py --config configs/e_learned_scoring.yaml --experiment E16 --features c8_lpp_lpr_embed

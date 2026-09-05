@@ -17,18 +17,18 @@ ARCHITECTURES = frozenset({"mlp", "transformer"})
 
 
 def default_checkpoint_path(
-    output_dir: str | Path,
+    checkpoint_dir: str | Path,
     experiment_id: str,
     architecture: str,
 ) -> Path:
-    """e.g. ``outputs/E/e16_phone_transformer.pt``."""
+    """e.g. ``checkpoints/e16/transformer_ckpt.pt``."""
     arch = str(architecture).strip().lower()
     if arch not in ARCHITECTURES:
         raise ValueError(f"architecture must be one of {sorted(ARCHITECTURES)}, got {architecture!r}")
     eid = str(experiment_id).strip().lower()
     if not eid:
         raise ValueError("experiment_id must be non-empty")
-    return Path(output_dir) / f"{eid}_phone_{arch}.pt"
+    return Path(checkpoint_dir) / eid / f"{arch}_ckpt.pt"
 
 
 def save_checkpoint(
