@@ -37,6 +37,9 @@
     "n_skipped_silence": 0,
     "n_empty_segment": 0,
     "n_missing_ssl": {
+      "C8": 0,
+      "C9": 0,
+      "C10": 0,
       "C11": 0
     },
     "c1_matches_a2": true,
