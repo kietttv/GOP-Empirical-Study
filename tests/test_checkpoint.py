@@ -103,3 +103,124 @@ def test_group_e_checkpoint_dir(tmp_path: Path) -> None:
     cfg = {"paths": {"checkpoint_dir": "checkpoints"}}
     assert _group_e_checkpoint_dir(cfg, tmp_path) == (tmp_path / "checkpoints").resolve()
     assert _group_e_checkpoint_dir({}, tmp_path) == (tmp_path / "checkpoints").resolve()
+
+
+def test_architecture_for_experiment() -> None:
+    from gop_empirical.data.learned import architecture_for_experiment
+
+    assert architecture_for_experiment("E1") == "mlp"
+    assert architecture_for_experiment("e2") == "transformer"
+    assert architecture_for_experiment("E15") == "mlp"
+    assert architecture_for_experiment("E16") == "transformer"
+
+
+def test_score_group_e_table_mlp(tmp_path: Path) -> None:
+    import pandas as pd
+    from gop_empirical.eval.metrics import evaluate_predictions
+    from gop_empirical.scoring.eval_checkpoint import score_group_e_table
+
+    rng = np.random.RandomState(0)
+    model = PhoneMLP(input_dim=3, hidden_dim=8, n_phones=None)
+    scaler = FeatureScaler(np.zeros(3), np.ones(3))
+    path = default_checkpoint_path(tmp_path, "E1", "mlp")
+    save_checkpoint(
+        path,
+        experiment_id="E1",
+        architecture="mlp",
+        model=model,
+        scaler=scaler,
+        model_kwargs={"input_dim": 3, "hidden_dim": 8, "n_phones": None},
+        feature_set="b4",
+    )
+    ckpt = load_checkpoint(path, device="cpu")
+    n = 12
+    table = pd.DataFrame(
+        {
+            "utt_id": ["u1"] * 6 + ["u2"] * 6,
+            "split": ["test"] * n,
+            "word_id": np.zeros(n, dtype=np.int64),
+            "phone_id": list(range(6)) * 2,
+            "phone": ["AH"] * n,
+            "human_score": rng.uniform(0.0, 2.0, n),
+            "feat_lpp_canonical": rng.randn(n),
+            "feat_lpp_max_competitor": rng.randn(n),
+            "feat_lpr": rng.randn(n),
+        }
+    )
+    scored, pred = score_group_e_table(
+        ckpt, table, clip=(0.0, 2.0), device=torch.device("cpu")
+    )
+    assert len(scored) == n
+    assert pred.shape == (n,)
+    metrics = evaluate_predictions(pred, scored["human_score"].to_numpy(), clip=(0.0, 2.0))
+    assert metrics["n"] == n
+    assert np.isfinite(metrics["mse"])
+
+
+def test_score_group_e_table_transformer(tmp_path: Path) -> None:
+    import pandas as pd
+    from gop_empirical.scoring.eval_checkpoint import score_group_e_table
+
+    rng = np.random.RandomState(1)
+    model = PhoneTransformer(
+        input_dim=3,
+        d_model=8,
+        nhead=2,
+        nlayers=1,
+        dim_feedforward=16,
+        dropout=0.0,
+        max_len=8,
+        n_phones=None,
+    )
+    scaler = FeatureScaler(np.zeros(3), np.ones(3))
+    path = default_checkpoint_path(tmp_path, "E2", "transformer")
+    save_checkpoint(
+        path,
+        experiment_id="E2",
+        architecture="transformer",
+        model=model,
+        scaler=scaler,
+        model_kwargs={
+            "input_dim": 3,
+            "d_model": 8,
+            "nhead": 2,
+            "nlayers": 1,
+            "dim_feedforward": 16,
+            "dropout": 0.0,
+            "max_len": 8,
+            "n_phones": None,
+        },
+        feature_set="b4",
+    )
+    ckpt = load_checkpoint(path, device="cpu")
+    n = 8
+    table = pd.DataFrame(
+        {
+            "utt_id": ["u1"] * 4 + ["u2"] * 4,
+            "split": ["test"] * n,
+            "word_id": np.zeros(n, dtype=np.int64),
+            "phone_id": list(range(4)) * 2,
+            "phone": ["AH"] * n,
+            "human_score": rng.uniform(0.0, 2.0, n),
+            "feat_lpp_canonical": rng.randn(n),
+            "feat_lpp_max_competitor": rng.randn(n),
+            "feat_lpr": rng.randn(n),
+        }
+    )
+    scored, pred = score_group_e_table(
+        ckpt, table, clip=(0.0, 2.0), device=torch.device("cpu")
+    )
+    assert pred.shape == (n,)
+    assert np.isfinite(pred).all()
+    assert len(scored) == n
+
+
+def test_eval_rejects_checkpoint_with_multiple_ids() -> None:
+    from gop_empirical.experiment import eval_group_e_checkpoints
+
+    try:
+        eval_group_e_checkpoints({}, ["E1", "E2"], checkpoint_path="x.pt")
+    except ValueError as exc:
+        assert "--checkpoint" in str(exc)
+    else:
+        raise AssertionError("expected ValueError")

@@ -18,8 +18,9 @@ from gop_empirical.data.learned import (
     FEATURE_GOP_TYPE,
     FEATURE_MISSING_HINT,
     FeatureScaler,
-    attach_canonical_phone_index,
+    architecture_for_experiment,
     assign_roles,
+    attach_canonical_phone_index,
     attach_speakers,
     choose_val_speakers,
     experiment_ids_for_features,
@@ -2382,6 +2383,133 @@ def export_group_e_checkpoint(
         "n_features": int(len(stored)),
         "pad_len": int(max_seq_len),
     }
+
+
+def eval_group_e_checkpoint(
+    cfg: dict[str, Any],
+    *,
+    experiment_id: str,
+    checkpoint_path: str | Path | None = None,
+    package_root: Path | None = None,
+    device_override: str | None = None,
+    split: str = "test",
+) -> dict[str, Any]:
+    """Load a Group E ``.pt`` and evaluate on official ``split`` (default test). Does not train."""
+    try:
+        import torch
+    except ImportError as exc:
+        raise ImportError(
+            "Group E requires PyTorch. Install a CPU wheel in the conda env 'gop', "
+            "e.g. pip install torch"
+        ) from exc
+
+    from gop_empirical.scoring.checkpoint import default_checkpoint_path, load_checkpoint
+    from gop_empirical.scoring.eval_checkpoint import score_group_e_table
+
+    package_root = package_root or PACKAGE_ROOT
+    eid = str(experiment_id).strip().upper()
+    architecture = architecture_for_experiment(eid)
+    ckpt_dir = _group_e_checkpoint_dir(cfg, package_root)
+    ckpt_path = (
+        resolve_path(checkpoint_path, base=package_root)
+        if checkpoint_path is not None
+        else default_checkpoint_path(ckpt_dir, eid, architecture)
+    )
+    if not ckpt_path.is_file():
+        raise FileNotFoundError(
+            f"missing {ckpt_path}; run Group E first, e.g. "
+            "python scripts/run_experiment.py --config configs/e_learned_scoring.yaml"
+        )
+
+    train_cfg = cfg.get("train") or {}
+    device_name = str(
+        device_override if device_override is not None else train_cfg.get("device", "cpu")
+    ).lower()
+    if device_name == "cuda" and torch.cuda.is_available():
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
+
+    ckpt = load_checkpoint(ckpt_path, device=device)
+    loaded_id = str(ckpt["experiment_id"]).strip().upper()
+    if loaded_id != eid:
+        raise ValueError(f"checkpoint {ckpt_path} is {loaded_id}, not {eid}")
+    feature_set = str(ckpt["feature_set"]).strip().lower()
+    mlp_id, tf_id = scoring_ids(feature_set)
+    if eid not in (mlp_id, tf_id):
+        raise ValueError(
+            f"experiment {eid} is not trained on feature set {feature_set!r}; "
+            f"expected {mlp_id} or {tf_id}"
+        )
+
+    src = _group_e_feature_path(feature_set, cfg["paths"], package_root)
+    if not src.is_file():
+        group_name, cfg_name = FEATURE_MISSING_HINT[feature_set]
+        if group_name == "extract":
+            raise FileNotFoundError(f"missing {src}; {cfg_name}")
+        raise FileNotFoundError(
+            f"missing {src}; run Group {group_name} first: "
+            f"python scripts/run_experiment.py --config configs/{cfg_name}.yaml"
+        )
+
+    table = load_group_e_feature_table(feature_set, cfg, package_root)
+    split_name = str(split).strip().lower()
+    subset = table[table["split"].astype(str) == split_name].copy()
+    if subset.empty:
+        raise RuntimeError(f"no phones with split={split_name!r} in {feature_set} table")
+
+    clip = _clip_tuple(cfg)
+    batch_mlp = int(train_cfg.get("batch_size_e1", 256))
+    batch_tf = int(train_cfg.get("batch_size_e2", 32))
+    scored, pred = score_group_e_table(
+        ckpt,
+        subset,
+        clip=clip,
+        device=device,
+        batch_size_mlp=batch_mlp,
+        batch_size_tf=batch_tf,
+    )
+    metrics = evaluate_predictions(
+        pred, scored["human_score"].to_numpy(), clip=clip
+    )
+    _print_metrics(f"{eid} {split_name}", metrics)
+    return {
+        "experiment_id": eid,
+        "architecture": str(ckpt["architecture"]),
+        "feature_set": feature_set,
+        "checkpoint_path": rel_path(ckpt_path, base=package_root),
+        "split": split_name,
+        "device": str(device),
+        "metrics": metrics,
+        "n": int(metrics["n"]),
+    }
+
+
+def eval_group_e_checkpoints(
+    cfg: dict[str, Any],
+    experiment_ids: Sequence[str],
+    *,
+    checkpoint_path: str | Path | None = None,
+    package_root: Path | None = None,
+    device_override: str | None = None,
+    split: str = "test",
+) -> list[dict[str, Any]]:
+    ids = [str(x).strip().upper() for x in experiment_ids if str(x).strip()]
+    if not ids:
+        raise ValueError("pass at least one --experiment id (e.g. E15, E1 E2)")
+    if checkpoint_path is not None and len(ids) != 1:
+        raise ValueError("--checkpoint can only be used with a single --experiment")
+    return [
+        eval_group_e_checkpoint(
+            cfg,
+            experiment_id=eid,
+            checkpoint_path=checkpoint_path,
+            package_root=package_root,
+            device_override=device_override,
+            split=split,
+        )
+        for eid in ids
+    ]
 
 
 def run_group_e(

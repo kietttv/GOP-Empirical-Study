@@ -227,6 +227,13 @@ Each run writes scorer weights to `checkpoints/{eid}/{mlp|transformer}_ckpt.pt` 
 python scripts/export_group_e_checkpoint.py --config configs/e_learned_scoring.yaml --experiment E16 --features c8_lpp_lpr_embed
 ```
 
+Evaluate a saved checkpoint on official test (no training):
+
+```powershell
+python scripts/eval_group_e_checkpoint.py --experiment E15
+python scripts/eval_group_e_checkpoint.py --experiment E1 E2
+```
+
 
 
 ### 4.6 Group F — Validation & error analysis (F1–F2)

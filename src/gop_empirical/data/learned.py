@@ -181,6 +181,18 @@ def scoring_ids(feature_set: str) -> tuple[str, str]:
     return SCORING_IDS[_require_feature_set(feature_set)]
 
 
+def architecture_for_experiment(experiment_id: str) -> str:
+    """Return ``mlp`` or ``transformer`` for a Group E experiment id."""
+    eid = str(experiment_id).strip().upper()
+    mlp_ids = {pair[0] for pair in SCORING_IDS.values()}
+    tf_ids = {pair[1] for pair in SCORING_IDS.values()}
+    if eid in mlp_ids:
+        return "mlp"
+    if eid in tf_ids:
+        return "transformer"
+    raise ValueError(f"unknown Group E experiment {eid!r}")
+
+
 def scoring_pred_columns(feature_set: str) -> tuple[str, str]:
     mlp_id, tf_id = scoring_ids(feature_set)
     return (f"pred_{mlp_id.lower()}", f"pred_{tf_id.lower()}")

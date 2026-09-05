@@ -439,6 +439,7 @@ Baseline copy từ JSON đã khóa, **không** fit lại.
 | `src/gop_empirical/scoring/transformer.py` | E2 / E4 / E6 / E8 / E10 / E12 / E14 / E16 / E18 / E20 / E22 |
 | `src/gop_empirical/scoring/train.py` | Adam + early stop |
 | `src/gop_empirical/scoring/checkpoint.py` | `checkpoints/{eid}/{arch}_ckpt.pt` |
+| `scripts/eval_group_e_checkpoint.py` | eval official test from `.pt` (no train) |
 | `src/gop_empirical/eval/metrics.py` | `evaluate_predictions` |
 | `src/gop_empirical/experiment.py` | `run_group_e` |
 | `scripts/run_experiment.py` | `--features` |
