@@ -131,5 +131,57 @@ class SanityPccTests(unittest.TestCase):
         self.assertGreater(pearson_pcc(x, y), 0.99)
 
 
+class GroupFLogTests(unittest.TestCase):
+    def test_bootstrap_and_delta_lines(self):
+        import io
+        from contextlib import redirect_stdout
+
+        from gop_empirical.experiment import (  # noqa: E402
+            _fmt_num,
+            _print_bootstrap,
+            _print_delta,
+            _print_type_counts,
+        )
+
+        self.assertEqual(_fmt_num(None, 4), "nan")
+        self.assertEqual(_fmt_num(0.4981, 3), "0.498")
+
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            _print_bootstrap(
+                "F1a C8",
+                {
+                    "n": 47369,
+                    "pcc": {"point": 0.463, "ci_low": 0.453, "ci_high": 0.473},
+                    "scc": {"point": 0.355},
+                },
+            )
+            _print_delta(
+                "F1b C8-C1",
+                {
+                    "pcc": {
+                        "delta": 0.121,
+                        "ci_low": 0.111,
+                        "ci_high": 0.131,
+                        "ci_excludes_zero": True,
+                    }
+                },
+            )
+            _print_type_counts(
+                "F2 C8",
+                {
+                    "n": 10,
+                    "mean_abs_err": 0.2,
+                    "primary": {"T3_accent": 4, "T2_confusion": 2, "other": 4},
+                },
+            )
+        text = buf.getvalue()
+        self.assertIn("F1a C8  PCC=0.4630  95% CI [0.453, 0.473]", text)
+        self.assertIn("F1b C8-C1  ΔPCC=+0.1210", text)
+        self.assertIn("excludes_zero=True", text)
+        self.assertIn("T3_accent=4", text)
+        self.assertIn("mean|err|=0.200", text)
+
+
 if __name__ == "__main__":
     unittest.main()

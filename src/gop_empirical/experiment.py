@@ -293,21 +293,102 @@ def _metric_subset(block: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _print_metrics(tag: str, m: dict[str, Any]) -> None:
-    """Log PCC/SCC/MAE/MSE (shared by Groups A–E)."""
-    def _fmt(key: str, digits: int) -> str:
-        val = m.get(key)
-        if val is None or (isinstance(val, float) and not np.isfinite(val)):
-            return "nan"
-        return f"{float(val):.{digits}f}"
+def _fmt_num(val: Any, digits: int) -> str:
+    if val is None or (isinstance(val, float) and not np.isfinite(val)):
+        return "nan"
+    return f"{float(val):.{digits}f}"
 
+
+def _print_metrics(tag: str, m: dict[str, Any]) -> None:
+    """Log PCC/SCC/MAE/MSE (shared by Groups A–F)."""
     n_val = m.get("n")
     n_str = str(int(n_val)) if n_val is not None else "?"
     print(
         f"{tag}  "
-        f"PCC={_fmt('pcc', 4)}  SCC={_fmt('scc', 4)}  "
-        f"MAE={_fmt('mae', 4)}  MSE={_fmt('mse', 4)}  "
+        f"PCC={_fmt_num(m.get('pcc'), 4)}  SCC={_fmt_num(m.get('scc'), 4)}  "
+        f"MAE={_fmt_num(m.get('mae'), 4)}  MSE={_fmt_num(m.get('mse'), 4)}  "
         f"n={n_str}",
+        flush=True,
+    )
+
+
+def _print_bootstrap(tag: str, block: dict[str, Any]) -> None:
+    pcc = block.get("pcc") or {}
+    scc = block.get("scc") or {}
+    print(
+        f"{tag}  PCC={_fmt_num(pcc.get('point'), 4)}  "
+        f"95% CI [{_fmt_num(pcc.get('ci_low'), 3)}, {_fmt_num(pcc.get('ci_high'), 3)}]  "
+        f"SCC={_fmt_num(scc.get('point'), 4)}  n={block.get('n', '?')}",
+        flush=True,
+    )
+
+
+def _print_delta(tag: str, block: dict[str, Any]) -> None:
+    pcc = block.get("pcc") or {}
+    delta = pcc.get("delta")
+    sign = "+" if isinstance(delta, (int, float)) and np.isfinite(delta) and delta >= 0 else ""
+    excl = pcc.get("ci_excludes_zero")
+    print(
+        f"{tag}  ΔPCC={sign}{_fmt_num(delta, 4)}  "
+        f"95% CI [{_fmt_num(pcc.get('ci_low'), 3)}, {_fmt_num(pcc.get('ci_high'), 3)}]  "
+        f"excludes_zero={excl}",
+        flush=True,
+    )
+
+
+def _print_phone_pcc_list(tag: str, rows: pd.DataFrame) -> None:
+    parts: list[str] = []
+    for row in jsonable_records(rows):
+        n_val = row.get("n")
+        n_str = str(int(n_val)) if n_val is not None else "?"
+        parts.append(f"{row['phone']}={_fmt_num(row.get('pcc'), 3)}(n={n_str})")
+    print(f"{tag}  " + "  ".join(parts), flush=True)
+
+
+def _print_type_counts(tag: str, counts: dict[str, Any]) -> None:
+    primary = counts.get("primary") or {}
+    order = (
+        "T3_accent",
+        "T2_confusion",
+        "T4_context",
+        "T5_speaker",
+        "T1_alignment",
+        "other",
+    )
+    seen = set(order)
+    parts = [f"{k}={int(primary.get(k, 0))}" for k in order]
+    for key, val in primary.items():
+        if str(key) not in seen:
+            parts.append(f"{key}={int(val)}")
+    mae = counts.get("mean_abs_err")
+    print(
+        f"{tag}  n={counts.get('n', '?')}  "
+        + "  ".join(parts)
+        + f"  mean|err|={_fmt_num(mae, 3)}",
+        flush=True,
+    )
+
+
+def _log_f1c_banner(
+    *,
+    models: Sequence[str],
+    seeds: Sequence[int],
+    lock_val_seed: int,
+    n_val: int,
+    device: Any,
+) -> None:
+    print(
+        f"F1c multi-seed retrain  models={','.join(str(m) for m in models)}  "
+        f"seeds={','.join(str(s) for s in seeds)}",
+        flush=True,
+    )
+    print(
+        f"F1c val speakers locked to seed {lock_val_seed}  "
+        f"n_val={n_val}  device={device}",
+        flush=True,
+    )
+    print(
+        "F1c writes outputs/F/ only; does not overwrite Group E or checkpoints/",
         flush=True,
     )
 
@@ -993,6 +1074,7 @@ def run_group_d(
     a2_src = resolve_path(paths["a2_results"], base=package_root)
     scores_path = resolve_path(paths["scores_json"], base=package_root)
     so_dir = resolve_path(paths["speechocean_dir"], base=package_root)
+    print("D joining locked A1 GOP + speaker / sentence scores ...", flush=True)
     if not pred_src.is_file():
         raise FileNotFoundError(
             f"missing {pred_src}; run Group A first: "
@@ -1024,6 +1106,12 @@ def run_group_d(
     test = df[df["split"] == "test"].copy()
     if train.empty or test.empty:
         raise RuntimeError("empty train or test after joining Group D metadata")
+    print(
+        f"D joined  n_train={len(train)}  n_test={len(test)}  "
+        f"speakers_test={len(speaker_meta['speakers_test'])}  "
+        f"overlap={len(speaker_meta['speaker_overlap'])}",
+        flush=True,
+    )
 
     clip = _clip_tuple(cfg)
     min_n_phone = int(cfg.get("min_n_phone", 100))
@@ -1043,18 +1131,38 @@ def run_group_d(
     print("D sanity vs A2 ok", flush=True)
     _print_metrics("D pooled test", sanity)
 
+    print(f"D1 phone metrics  min_n={min_n_phone} ...", flush=True)
     phone_table = group_metrics_table(test, "phone", mapping, min_n=min_n_phone, clip=clip)
     phone_table["aggregate"] = False
     class_table = phone_class_metrics(test, mapping, min_n=min_n_phone, clip=clip)
     d1_table = pd.concat([phone_table, class_table], ignore_index=True)
+    skipped = (
+        phone_table.loc[~phone_table["reported"].astype(bool), "phone"]
+        .astype(str)
+        .tolist()
+    )
+    print(
+        f"D1 phones  n_reported={int(phone_table['reported'].sum())}/{len(phone_table)}"
+        + (f"  skipped={','.join(skipped)}" if skipped else ""),
+        flush=True,
+    )
     for row in jsonable_records(class_table):
         _print_metrics(f"D1 {row['phone']}", row)
+    reported_phones = phone_table[phone_table["reported"] & phone_table["pcc"].notna()].copy()
+    top = reported_phones.sort_values("pcc", ascending=False).head(5)
+    bottom = reported_phones.sort_values("pcc", ascending=True).head(5)
+    if not top.empty:
+        _print_phone_pcc_list("D1 top PCC   ", top)
+    if not bottom.empty:
+        _print_phone_pcc_list("D1 bottom PCC", bottom)
 
+    print(f"D2 speaker metrics  min_n={min_n_speaker} ...", flush=True)
     speaker_table = group_metrics_table(
         test, "speaker", mapping, min_n=min_n_speaker, clip=clip, extra_fields=("age",)
     )
     speaker_table["age"] = pd.to_numeric(speaker_table.get("age"), errors="coerce")
 
+    print(f"D3 score strata  min_n={min_n_stratum} ...", flush=True)
     stratum_table = group_metrics_table(
         test, "score_stratum", mapping, min_n=min_n_stratum, clip=clip
     )
@@ -1073,16 +1181,21 @@ def run_group_d(
     d2_summary["n_missing_age"] = int(speaker_table["age"].isna().sum())
     print(
         f"D2 speakers  n={d2_summary['n_speakers_reported']}  "
-        f"pcc_mean={d2_summary['pcc_mean'] if d2_summary['pcc_mean'] is not None else float('nan'):.4f}  "
-        f"pcc_std={d2_summary['pcc_std'] if d2_summary['pcc_std'] is not None else float('nan'):.4f}  "
+        f"pcc_mean={_fmt_num(d2_summary.get('pcc_mean'), 4)}  "
+        f"pcc_std={_fmt_num(d2_summary.get('pcc_std'), 4)}  "
+        f"pcc_min={_fmt_num(d2_summary.get('pcc_min'), 4)}  "
+        f"pcc_max={_fmt_num(d2_summary.get('pcc_max'), 4)}  "
         f"overlap={d2_summary['speaker_overlap']}",
+        flush=True,
+    )
+    print(
+        f"D3 tertiles  q33={_fmt_num(stratum_meta.get('q33'), 2)}  "
+        f"q66={_fmt_num(stratum_meta.get('q66'), 2)}  "
+        f"(not proficiency / CEFR)",
         flush=True,
     )
     for row in jsonable_records(stratum_table):
         _print_metrics(f"D3 {row['score_stratum']}", row)
-    reported_phones = phone_table[phone_table["reported"] & phone_table["pcc"].notna()].copy()
-    top = reported_phones.sort_values("pcc", ascending=False).head(5)
-    bottom = reported_phones.sort_values("pcc", ascending=True).head(5)
 
     out_dir = resolve_path(paths["output_dir"], base=package_root)
     pred_path = write_predictions(df, out_dir / "d_predictions.csv", columns=GROUP_D_PREDICTION_COLUMNS)
@@ -1163,6 +1276,14 @@ def run_group_d(
     results_path = write_results(results, out_dir / "d_results.json")
     results["results_path"] = rel_path(results_path, base=package_root)
     results["predictions_path"] = rel_path(pred_path, base=package_root)
+    print(
+        f"D wrote  {results['predictions_path']}  "
+        f"{rel_path(d1_path, base=package_root)}  "
+        f"{rel_path(d2_path, base=package_root)}  "
+        f"{rel_path(d3_path, base=package_root)}  "
+        f"{results['results_path']}",
+        flush=True,
+    )
     return results
 
 
@@ -2735,6 +2856,11 @@ def _run_multiseed_model(
     out_dir: Path,
 ) -> dict[str, Any]:
     feature_set = _MULTISEED_FEATURE[model_id]
+    print(
+        f"F1c start {model_id} seed={seed}  features={feature_set}  "
+        f"device={device}  (retrains MLP+Transformer; keeps {model_id} test PCC)",
+        flush=True,
+    )
     table = load_group_e_feature_table(feature_set, e_cfg, package_root)
     speaker_meta = load_speaker_metadata(resolve_path(e_cfg["paths"]["speechocean_dir"], base=package_root))
     table = attach_speakers(table, speaker_meta["utt2spk"])
@@ -2769,6 +2895,13 @@ def _run_multiseed_model(
     ]
     pred_path = out_dir / f"f1_multiseed_{model_id.lower()}_seed{seed}.csv"
     write_predictions(test[keep], pred_path, columns=keep)
+    rel = rel_path(pred_path, base=package_root)
+    print(
+        f"F1c done  {model_id} seed={seed}  "
+        f"PCC={_fmt_num(metrics.get('pcc'), 4)}  SCC={_fmt_num(metrics.get('scc'), 4)}  "
+        f"n={metrics.get('n', '?')}  -> {rel}",
+        flush=True,
+    )
     return {
         "model": model_id,
         "feature_set": feature_set,
@@ -2778,7 +2911,7 @@ def _run_multiseed_model(
         "mae": float(metrics["mae"]),
         "mse": float(metrics["mse"]),
         "n": int(metrics["n"]),
-        "predictions_path": rel_path(pred_path, base=package_root),
+        "predictions_path": rel,
     }
 
 
@@ -2797,20 +2930,34 @@ def run_group_f(
     ci_level = float(cfg.get("ci_level", 0.95))
     model_ids = [str(m) for m in cfg.get("models", list(SCORE_COLUMN))]
     contrasts = [tuple(str(x) for x in pair) for pair in cfg.get("contrasts", [])]
-
+    print(
+        "F joining locked A/B/C/E scores "
+        f"(skip_multiseed={bool(skip_multiseed)}) ...",
+        flush=True,
+    )
     table = build_group_f_score_table(path_map, clip=clip)
     expected_n = 47369
     if len(table) != expected_n:
         raise RuntimeError(
             f"Group F join n_test={len(table)} does not match A2 n={expected_n}"
         )
+    print(
+        f"F joined  n_test={len(table)}  models={','.join(model_ids)}",
+        flush=True,
+    )
     human = table["human_score"].to_numpy(dtype=np.float64)
 
+    print(
+        f"F1a bootstrap  n_boot={n_boot}  seed={seed}  "
+        f"ci={ci_level:.0%}  (locked preds; no train)",
+        flush=True,
+    )
     f1_models: dict[str, Any] = {}
     for mid in model_ids:
         col = SCORE_COLUMN[mid]
         if col not in table.columns:
             raise KeyError(f"missing score column {col} for model {mid}")
+        print(f"F1a bootstrap {mid} ...", flush=True)
         f1_models[mid] = bootstrap_model_metrics(
             table[col].to_numpy(dtype=np.float64),
             human,
@@ -2818,10 +2965,13 @@ def run_group_f(
             seed=seed,
             ci_level=ci_level,
         )
+        _print_bootstrap(f"F1a {mid}", f1_models[mid])
 
+    print("F1b paired ΔPCC  (same test phones)", flush=True)
     f1_contrasts: dict[str, Any] = {}
     for a, b in contrasts:
         key = f"{a}-{b}"
+        print(f"F1b bootstrap {key} ...", flush=True)
         f1_contrasts[key] = {
             "a": a,
             "b": b,
@@ -2834,6 +2984,7 @@ def run_group_f(
                 ci_level=ci_level,
             ),
         }
+        _print_delta(f"F1b {key}", f1_contrasts[key])
 
     out_dir = path_map["output_dir"]
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -2857,8 +3008,10 @@ def run_group_f(
         out_dir / "f_predictions.csv",
         columns=base_cols + score_cols + extra,
     )
+    print(f"F wrote  {rel_path(pred_path, base=package_root)}", flush=True)
 
     # --- F2 ---
+    print("F2 error taxonomy  (locked C8 / E16 residuals + scores-detail)", flush=True)
     err_cfg = cfg.get("error") or {}
     top_k = int(err_cfg.get("top_k", 100))
     context_gap = float(err_cfg.get("context_err_gap", 0.5))
@@ -2904,6 +3057,7 @@ def run_group_f(
         "E16": ("abs_err_e16", "abs_err_c8"),
     }
     for mid in [str(m) for m in err_cfg.get("models", ["C8", "E16"])]:
+        print(f"F2 classify {mid} ...", flush=True)
         self_col, other_col = context_pair.get(mid, ("abs_err_c8", "abs_err_e16"))
         classified = classify_errors(
             f2_base,
@@ -2953,10 +3107,16 @@ def run_group_f(
             "by_human": stratified_error_summary(classified),
             "n_extreme_speakers": int(len(extreme)),
         }
+        _print_type_counts(f"F2 {mid}", f2_blocks[mid]["counts"])
 
     top_all = pd.concat(top_frames, ignore_index=True) if top_frames else pd.DataFrame()
     top_path = out_dir / "f2_top_errors.csv"
     top_all.to_csv(top_path, index=False)
+    print(
+        f"F2 wrote  {rel_path(top_path, base=package_root)}  "
+        f"n_extreme_speakers={len(extreme)}",
+        flush=True,
+    )
 
     # --- F1c multi-seed ---
     multiseed_cfg = cfg.get("multiseed") or {}
@@ -2974,6 +3134,9 @@ def run_group_f(
         multiseed_block = prev_ms
         multiseed_block["skipped"] = False
         multiseed_block["preserved_from_prior_run"] = True
+        print("F1c skipped; keeping prior multi-seed from outputs/F/f_results.json", flush=True)
+    elif skip_multiseed:
+        print("F1c skipped (--skip-multiseed); bootstrap + F2 only", flush=True)
     elif not skip_multiseed:
         e_cfg_path = path_map["e_config"]
         if not e_cfg_path.is_file():
@@ -2999,9 +3162,18 @@ def run_group_f(
             if device_name == "cuda" and torch.cuda.is_available()
             else torch.device("cpu")
         )
-        for mid in [str(m) for m in multiseed_cfg.get("models", ["E2", "E16"])]:
+        ms_models = [str(m) for m in multiseed_cfg.get("models", ["E2", "E16"])]
+        ms_seeds = [int(x) for x in multiseed_cfg.get("seeds", [0, 1, 2, 3, 4])]
+        _log_f1c_banner(
+            models=ms_models,
+            seeds=ms_seeds,
+            lock_val_seed=lock_val_seed,
+            n_val=len(val_speakers),
+            device=device,
+        )
+        for mid in ms_models:
             runs = []
-            for s in [int(x) for x in multiseed_cfg.get("seeds", [0, 1, 2, 3, 4])]:
+            for s in ms_seeds:
                 runs.append(
                     _run_multiseed_model(
                         mid,
@@ -3015,15 +3187,23 @@ def run_group_f(
                     )
                 )
             pccs = np.asarray([r["pcc"] for r in runs], dtype=np.float64)
+            pcc_std = float(pccs.std(ddof=1)) if len(pccs) > 1 else 0.0
             multiseed_block["models"][mid] = {
                 "val_speakers_locked_seed": lock_val_seed,
                 "n_speakers_val": int(len(val_speakers)),
                 "runs": runs,
                 "pcc_mean": float(pccs.mean()),
-                "pcc_std": float(pccs.std(ddof=1)) if len(pccs) > 1 else 0.0,
+                "pcc_std": pcc_std,
                 "pcc_min": float(pccs.min()),
                 "pcc_max": float(pccs.max()),
             }
+            print(
+                f"F1c {mid}  pcc_mean={_fmt_num(float(pccs.mean()), 4)}  "
+                f"std={_fmt_num(pcc_std, 4)}  "
+                f"min={_fmt_num(float(pccs.min()), 4)}  "
+                f"max={_fmt_num(float(pccs.max()), 4)}",
+                flush=True,
+            )
 
     protocol = {
         "dataset": cfg.get("dataset"),
@@ -3057,6 +3237,7 @@ def run_group_f(
     results_path = write_results(results, out_dir / "f_results.json")
     results["results_path"] = rel_path(results_path, base=package_root)
     results["predictions_path"] = protocol["predictions_path"]
+    print(f"F wrote  {results['results_path']}", flush=True)
     return results
 
 

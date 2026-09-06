@@ -182,7 +182,7 @@ Default yaml also omits C6/C7. Needs SSL extracts for any model other than C1.
 python scripts/run_experiment.py --config configs/d_gop_behavior.yaml
 ```
 
-Needs `outputs/A/` (`a1_predictions.csv`, `a2_results.json`).
+Needs `outputs/A/` (`a1_predictions.csv`, `a2_results.json`). Terminal logs D1–D3 metrics (phone / speaker / strata) as it runs.
 
 ### 4.5 Group E — Learned scoring (E1–E18)
 
@@ -242,7 +242,7 @@ python scripts/eval_group_e_checkpoint.py --experiment E1 E2
 python scripts/run_experiment.py --config configs/f_validation.yaml
 ```
 
-Needs locked A/B/C/D/E predictions. Multi-seed retrain of E2/E16 writes under `outputs/F/` only.
+Needs locked A/B/C/D/E predictions. Terminal logs F1a bootstrap, F1b ΔPCC, F2 taxonomy, then F1c. Multi-seed retrain of E2/E16 writes under `outputs/F/` only.
 
 Bootstrap only (skip multi-seed):
 

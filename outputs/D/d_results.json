@@ -1,0 +1,221 @@
+{
+  "group": "D",
+  "experiments": [
+    "D1",
+    "D2",
+    "D3"
+  ],
+  "protocol": {
+    "dataset": "speechocean762",
+    "acoustic_model": "kaldi_librispeech_m13",
+    "alignment": "kaldi",
+    "gop_type": "standard",
+    "level": "phoneme",
+    "scoring": "direct",
+    "n_train": 47076,
+    "n_test": 47369,
+    "n_speakers_train": 125,
+    "n_speakers_test": 125,
+    "speaker_overlap": 0,
+    "min_n_phone": 100,
+    "min_n_speaker": 50,
+    "min_n_stratum": 50,
+    "mapping": {
+      "slope": 0.21940455627038302,
+      "intercept": 0.4442474810849879
+    },
+    "mapping_source": "outputs/A/a2_results.json",
+    "gop_source": "outputs/A/a1_predictions.csv",
+    "sanity_matches_a2": true,
+    "sanity_pcc": 0.32305254505609116,
+    "sanity_scc": 0.3128117227224352,
+    "sanity_mae": 0.199358080791514,
+    "sanity_mse": 0.12026967940693759,
+    "predictions_path": "outputs/D/d_predictions.csv"
+  },
+  "D1": {
+    "description": "Phone-level GOP vs human on official test split",
+    "min_n": 100,
+    "n_phones": 39,
+    "n_reported": 37,
+    "phone_class": {
+      "CONSONANT": {
+        "n": 28386,
+        "mean_gop": 6.4659903009824955,
+        "std_gop": 0.7333450509336058,
+        "mean_human": 1.8923483407313464,
+        "pcc": 0.34311788400656684,
+        "scc": 0.314031221342043,
+        "mae": 0.18355550279844593,
+        "mse": 0.10269638143103402,
+        "reported": true
+      },
+      "VOWEL": {
+        "n": 18983,
+        "mean_gop": 6.361481923044202,
+        "std_gop": 0.5082325919562282,
+        "mean_human": 1.8484117368171522,
+        "pcc": 0.3074046857554886,
+        "scc": 0.3097494201334891,
+        "mae": 0.2229882751186082,
+        "mse": 0.1465476984947529,
+        "reported": true
+      }
+    },
+    "top_pcc": [
+      {
+        "phone": "SH",
+        "n": 346,
+        "pcc": 0.6264292943238762,
+        "scc": 0.5724913256097489,
+        "mean_gop": 6.297605335367897,
+        "mean_human": 1.792485549132948
+      },
+      {
+        "phone": "CH",
+        "n": 181,
+        "pcc": 0.615698276894304,
+        "scc": 0.4384546660302585,
+        "mean_gop": 6.1661876683735715,
+        "mean_human": 1.8662983425414366
+      },
+      {
+        "phone": "EY",
+        "n": 800,
+        "pcc": 0.5804772666767567,
+        "scc": 0.598787397861808,
+        "mean_gop": 6.279058703184128,
+        "mean_human": 1.74425
+      },
+      {
+        "phone": "M",
+        "n": 1464,
+        "pcc": 0.48024924477170616,
+        "scc": 0.45910583797850696,
+        "mean_gop": 6.962729456320487,
+        "mean_human": 1.9006830601092894
+      },
+      {
+        "phone": "AO",
+        "n": 750,
+        "pcc": 0.4742390884010446,
+        "scc": 0.41231102470127273,
+        "mean_gop": 6.070762030919393,
+        "mean_human": 1.8221333333333336
+      }
+    ],
+    "bottom_pcc": [
+      {
+        "phone": "AE",
+        "n": 1465,
+        "pcc": 0.2727229680090042,
+        "scc": 0.23685164189148877,
+        "mean_gop": 6.133379659229578,
+        "mean_human": 1.8865529010238908
+      },
+      {
+        "phone": "HH",
+        "n": 1081,
+        "pcc": 0.28806781390935027,
+        "scc": 0.23950822010152614,
+        "mean_gop": 6.031377678993783,
+        "mean_human": 1.945235892691952
+      },
+      {
+        "phone": "AH",
+        "n": 4437,
+        "pcc": 0.2884562126118843,
+        "scc": 0.3090829264819739,
+        "mean_gop": 6.616580128535404,
+        "mean_human": 1.8393959882803697
+      },
+      {
+        "phone": "B",
+        "n": 846,
+        "pcc": 0.2916439168318461,
+        "scc": 0.21137970355725474,
+        "mean_gop": 6.644302023218033,
+        "mean_human": 1.966903073286052
+      },
+      {
+        "phone": "Y",
+        "n": 625,
+        "pcc": 0.2928619122145466,
+        "scc": 0.2314483104810172,
+        "mean_gop": 6.34907573852539,
+        "mean_human": 1.9686400000000002
+      }
+    ],
+    "metrics_path": "outputs/D/d1_phone_metrics.csv"
+  },
+  "D2": {
+    "description": "Speaker-level GOP vs human on official test split",
+    "min_n": 50,
+    "n_speakers": 125,
+    "n_speakers_reported": 125,
+    "pcc_mean": 0.25203068830693043,
+    "pcc_std": 0.08376377701783401,
+    "pcc_min": 0.07791138543472417,
+    "pcc_max": 0.5393174235333793,
+    "mae_mean": 0.20012094299943137,
+    "mean_gop_mean": 6.408541619514926,
+    "n_speakers_train": 125,
+    "n_speakers_test": 125,
+    "speaker_overlap": 0,
+    "n_missing_age": 0,
+    "metrics_path": "outputs/D/d2_speaker_metrics.csv"
+  },
+  "D3": {
+    "description": "Speaker-mean sentence-accuracy tertiles (not proficiency)",
+    "min_n": 50,
+    "q33": 7.716666666666667,
+    "q66": 8.35,
+    "n_speakers_per_stratum": {
+      "Low": 42,
+      "Mid": 46,
+      "High": 37
+    },
+    "strata": {
+      "Low": {
+        "n": 16002,
+        "mean_gop": 6.190903646009383,
+        "std_gop": 0.6496062078457128,
+        "mean_human": 1.7295213098362707,
+        "pcc": 0.3630217447035411,
+        "scc": 0.3510028034794639,
+        "mae": 0.31930705314942215,
+        "mse": 0.2754853527599874,
+        "reported": true,
+        "n_utt": 840,
+        "n_speakers": 42
+      },
+      "Mid": {
+        "n": 16537,
+        "mean_gop": 6.441451125373616,
+        "std_gop": 0.6131200713242018,
+        "mean_human": 1.9374856382657073,
+        "pcc": 0.2279597652342485,
+        "scc": 0.23764625774722564,
+        "mae": 0.1569931392675745,
+        "mse": 0.05033054098668089,
+        "reported": true,
+        "n_utt": 920,
+        "n_speakers": 46
+      },
+      "High": {
+        "n": 14830,
+        "mean_gop": 6.65640557148291,
+        "std_gop": 0.6171912729466065,
+        "mean_human": 1.9614699932569115,
+        "pcc": 0.2065857791839803,
+        "scc": 0.20612997014685386,
+        "mae": 0.11717099935591992,
+        "mse": 0.030776916565419102,
+        "reported": true,
+        "n_utt": 740,
+        "n_speakers": 37
+      }
+    },
+    "metrics_path": "outputs/D/d3_stratum_metrics.csv"
+  }
+}

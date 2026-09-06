@@ -15,7 +15,9 @@ from gop_empirical.data.speakers import load_speaker_metadata  # noqa: E402
 from gop_empirical.experiment import (  # noqa: E402
     PACKAGE_ROOT as ROOT,
     _clip_tuple,
+    _fmt_num,
     _group_f_paths,
+    _log_f1c_banner,
     _run_multiseed_model,
     load_config,
     rel_path,
@@ -56,11 +58,20 @@ def main() -> int:
 
     import numpy as np
 
+    ms_models = [str(m) for m in multiseed_cfg.get("models", ["E2", "E16"])]
+    ms_seeds = [int(x) for x in multiseed_cfg.get("seeds", [0, 1, 2, 3, 4])]
+    _log_f1c_banner(
+        models=ms_models,
+        seeds=ms_seeds,
+        lock_val_seed=lock_val_seed,
+        n_val=len(val_speakers),
+        device=device,
+    )
+
     block: dict = {"skipped": False, "models": {}}
-    for mid in [str(m) for m in multiseed_cfg.get("models", ["E2", "E16"])]:
+    for mid in ms_models:
         runs = []
-        for s in [int(x) for x in multiseed_cfg.get("seeds", [0, 1, 2, 3, 4])]:
-            print(f"multiseed {mid} seed={s} ...", flush=True)
+        for s in ms_seeds:
             runs.append(
                 _run_multiseed_model(
                     mid,
@@ -73,20 +84,24 @@ def main() -> int:
                     out_dir=out_dir,
                 )
             )
-            print(
-                f"  PCC={runs[-1]['pcc']:.4f} SCC={runs[-1]['scc']:.4f}",
-                flush=True,
-            )
         pccs = np.asarray([r["pcc"] for r in runs], dtype=np.float64)
+        pcc_std = float(pccs.std(ddof=1)) if len(pccs) > 1 else 0.0
         block["models"][mid] = {
             "val_speakers_locked_seed": lock_val_seed,
             "n_speakers_val": int(len(val_speakers)),
             "runs": runs,
             "pcc_mean": float(pccs.mean()),
-            "pcc_std": float(pccs.std(ddof=1)) if len(pccs) > 1 else 0.0,
+            "pcc_std": pcc_std,
             "pcc_min": float(pccs.min()),
             "pcc_max": float(pccs.max()),
         }
+        print(
+            f"F1c {mid}  pcc_mean={_fmt_num(float(pccs.mean()), 4)}  "
+            f"std={_fmt_num(pcc_std, 4)}  "
+            f"min={_fmt_num(float(pccs.min()), 4)}  "
+            f"max={_fmt_num(float(pccs.max()), 4)}",
+            flush=True,
+        )
 
     results["F1"]["multiseed"] = block
     results["protocol"]["skip_multiseed"] = False
