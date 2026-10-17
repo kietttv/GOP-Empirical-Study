@@ -86,7 +86,7 @@ from gop_empirical.gop.traditional import traditional_gop_batch
 PACKAGE_ROOT = Path(__file__).resolve().parents[2]
 
 
-def load_config(path: str | Path) -> dict[str, Any]:
+def load_config(path: str | Path) -> dict[str, Any]: # load config từ file config
     path = Path(path)
     with path.open(encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
@@ -111,7 +111,7 @@ def rel_path(path: str | Path, *, base: Path) -> str:
         return p.as_posix()
 
 
-def _clip_tuple(cfg: dict[str, Any]) -> tuple[float, float]:
+def _clip_tuple(cfg: dict[str, Any]) -> tuple[float, float]: # clip là tuple chứa 2 giá trị float
     clip = cfg.get("score_clip", [0.0, 2.0])
     return float(clip[0]), float(clip[1])
 
@@ -136,7 +136,7 @@ def _load_join_inputs(
     return kaldi_dir, human, skip, phone_index_base, expected_n_phones
 
 
-def build_predictions(
+def build_predictions( # build predictions for group A
     cfg: dict[str, Any],
     *,
     package_root: Path | None = None,
@@ -401,9 +401,9 @@ def run_group_a(
     """A1 compute GOP, A2 correlate / map on official test split."""
     package_root = package_root or PACKAGE_ROOT
     print("A1 joining Kaldi GOP + scores.json ...", flush=True)
-    df, stats = build_predictions(cfg, package_root=package_root)
-    train = df[df["split"] == "train"]
-    test = df[df["split"] == "test"]
+    df, stats = build_predictions(cfg, package_root=package_root) # build predictions for group A, df là dataframe chứa predictions, stats là dictionary chứa statistics
+    train = df[df["split"] == "train"] # lấy train data từ dataframe df
+    test = df[df["split"] == "test"] # lấy test data từ dataframe df
     if train.empty or test.empty:
         raise RuntimeError("empty train or test after join")
     print(
@@ -412,14 +412,15 @@ def run_group_a(
         flush=True,
     )
 
-    clip = _clip_tuple(cfg)
-    mapping = fit_linear_score_map(train["gop"].to_numpy(), train["human_score"].to_numpy())
-    train_m = evaluate_split(
-        train["gop"].to_numpy(), train["human_score"].to_numpy(), mapping, clip=clip
-    )
+    clip = _clip_tuple(cfg) # clip là tuple chứa 2 giá trị float được lấy từ config [0.0, 2.0]
+    mapping = fit_linear_score_map(train["gop"].to_numpy(), train["human_score"].to_numpy()) 
+    # fit linear score map for group A, mapping là dictionary chứa mapping giữa gop và human score
+    train_m = evaluate_split( 
+        train["gop"].to_numpy(), train["human_score"].to_numpy(), mapping, clip=clip 
+    ) # evaluate split for group A, train_m là dictionary chứa statistics cho train data
     test_m = evaluate_split(
         test["gop"].to_numpy(), test["human_score"].to_numpy(), mapping, clip=clip
-    )
+    ) # evaluate split for group A, test_m là dictionary chứa statistics cho test data
     if train_m["pcc"] < 0.05:
         raise RuntimeError(
             f"train PCC={train_m['pcc']:.4f} is too weak for canonical LPP; "
@@ -2535,7 +2536,15 @@ def eval_group_e_checkpoint(
         resolve_path(checkpoint_path, base=package_root)
         if checkpoint_path is not None
         else default_checkpoint_path(ckpt_dir, eid, architecture)
-    )
+    ) 
+    # toán tử 3 ngôi để kiểm tra nếu checkpoint_path không phải là None thì sử dụng checkpoint_path, 
+    # nếu là None thì sử dụng default_checkpoint_path
+    # if checkpoint_path is not None:
+    # ckpt_path = resolve_path(checkpoint_path, base=package_root)
+    # else:
+    # ckpt_path = default_checkpoint_path(ckpt_dir, eid, architecture)
+
+
     if not ckpt_path.is_file():
         raise FileNotFoundError(
             f"missing {ckpt_path}; run Group E first, e.g. "
@@ -3249,12 +3258,12 @@ def run_from_config(
     skip_multiseed: bool = False,
     device: str | None = None,
 ) -> dict[str, Any]:
-    config_path = Path(config_path)
-    cfg = load_config(config_path)
+    config_path = Path(config_path) # đường dẫn đến file config
+    cfg = load_config(config_path) # load config từ file config
     np.random.seed(int(cfg.get("seed", 0)))
     group = str(cfg.get("group", "A")).upper()
     if group == "A":
-        return run_group_a(cfg, package_root=PACKAGE_ROOT)
+        return run_group_a(cfg, package_root=PACKAGE_ROOT) # chạy group A
     if group == "B":
         return run_group_b(cfg, package_root=PACKAGE_ROOT)
     if group == "C":

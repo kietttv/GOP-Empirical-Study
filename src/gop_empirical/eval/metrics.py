@@ -21,7 +21,7 @@ def correlation_metrics(gop: np.ndarray, human: np.ndarray) -> dict[str, float]:
     return {"pcc": pcc, "scc": scc}
 
 
-def fit_linear_score_map(gop_train: np.ndarray, y_train: np.ndarray) -> dict[str, float]:
+def fit_linear_score_map(gop_train: np.ndarray, y_train: np.ndarray) -> dict[str, float]: # fit linear score map for group A
     """Fit GOP → human score on **train only** (no test leakage)."""
     gop_train = np.asarray(gop_train, dtype=np.float64).reshape(-1, 1)
     y_train = np.asarray(y_train, dtype=np.float64).reshape(-1)

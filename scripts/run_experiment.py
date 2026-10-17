@@ -66,12 +66,12 @@ def main() -> int:
         help="Group F only: skip F1c multi-seed retrain (bootstrap + F2 only)",
     )
     args = parser.parse_args()
-    cfg_path = args.config
+    cfg_path = args.config # là --config
     if not cfg_path.is_absolute():
         cfg_path = (Path.cwd() / cfg_path).resolve()
         if not cfg_path.is_file():
             cfg_path = (PACKAGE_ROOT / args.config).resolve()
-    results = run_from_config(
+    results = run_from_config( # chạy experiment gọi đến experiment.py function run_from_config 
         cfg_path,
         models=args.models,
         features=args.features,

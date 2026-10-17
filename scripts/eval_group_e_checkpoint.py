@@ -57,8 +57,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    cfg = load_config(args.config)
-    results = eval_group_e_checkpoints(
+    cfg = load_config(args.config) # load config từ file config
+    results = eval_group_e_checkpoints( # evaluate group E checkpoints, results là list chứa results của từng checkpoint
         cfg,
         args.experiment,
         checkpoint_path=args.checkpoint,
